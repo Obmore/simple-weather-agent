@@ -116,7 +116,7 @@ audit the execution path, not to reconstruct private model reasoning.
 - [x] Unit and integration-style tests pass.
 - [x] Ruff and mypy pass.
 - [x] Secret and repository-content checks completed.
-- [ ] Private GitHub repository published without adding the collaborator.
+- [x] Private GitHub repository published without adding the collaborator.
 
 The project is complete when a clean environment can install it with the documented
 command, the tool-calling path is verified with a mocked LLM, a live Open-Meteo

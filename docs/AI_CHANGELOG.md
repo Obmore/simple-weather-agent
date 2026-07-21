@@ -23,3 +23,10 @@
 
 Before the next implementation change, run `scripts/check.sh`. Modify behavior only
 for a verified defect or a new requirement.
+
+## 2026-07-21 - Private repository publication
+
+- Initialized the repository on the `main` branch with an intentional initial commit.
+- Published the project as the private `Obmore/simple-weather-agent` GitHub repository.
+- Preserved the owner-only collaborator invitation step documented in
+  `docs/GITHUB_HANDOFF.md`.
