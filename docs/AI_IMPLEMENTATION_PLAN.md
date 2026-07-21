@@ -87,7 +87,7 @@ audit the execution path, not to reconstruct private model reasoning.
 - Strict mypy checking for the source package.
 - Pytest with network-free HTTP mocks.
 - Branch-aware coverage for critical agent, tool, and weather paths.
-- A separate live Open-Meteo smoke check outside the default test run.
+- A documented live Open-Meteo smoke check during release verification.
 - GitHub Actions on Python 3.11, 3.12, and 3.13.
 - Repository-wide English-language scan.
 
