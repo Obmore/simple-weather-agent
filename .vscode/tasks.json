@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Setup development environment",
+      "type": "shell",
+      "command": "bash ./scripts/setup.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run all quality checks",
+      "type": "shell",
+      "command": "bash ./scripts/check.sh",
+      "group": {"kind": "test", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "Run traced example",
+      "type": "shell",
+      "command": "bash ./run.sh --trace \"What is the current temperature in Budapest?\"",
+      "problemMatcher": []
+    }
+  ]
+}

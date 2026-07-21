@@ -1,0 +1,18 @@
+---
+description: Project-wide invariants and verification for the current-temperature agent
+alwaysApply: true
+---
+
+# Project rules
+
+Read `AGENTS.md`, `docs/AI_IMPLEMENTATION_PLAN.md`, and `docs/ARCHITECTURE.md`
+before editing. Preserve the current-temperature-only scope and the finite,
+traceable tool-calling loop.
+
+The LLM may only receive `get_current_temperatures`. Never add arbitrary network,
+shell, filesystem, forecast, or general-knowledge tools. The Open-Meteo forecast
+request must remain limited to `current=temperature_2m`.
+
+Use dependency injection at LLM and HTTP boundaries. Add or update tests for every
+behavior change. Run Ruff format/check, mypy, and pytest with coverage before
+declaring completion. Update the AI plan and changelog at the end of a session.
