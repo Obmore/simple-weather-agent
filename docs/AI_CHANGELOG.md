@@ -28,7 +28,14 @@ for a verified defect or a new requirement.
 
 - Initialized the repository on the `main` branch with an intentional initial commit.
 - Published the project as the private `Obmore/simple-weather-agent` GitHub repository.
-- Preserved the owner-only collaborator invitation step documented in
-  `docs/GITHUB_HANDOFF.md`.
+- Preserved the owner-only collaborator invitation step outside the repository.
 - Updated official GitHub Actions dependencies to their current Node 24-based major
   versions after the first remote CI run reported Node 20 deprecation warnings.
+
+## 2026-07-21 - Submission compliance and cleanup
+
+- Re-audited every functional and delivery requirement against source, tests,
+  documentation, local state, and the private GitHub repository.
+- Removed the redundant GitHub handoff document and unused pytest live-test marker.
+- Confirmed that local generated environments, caches, coverage data, bytecode, and
+  editable-install metadata are ignored and safe to regenerate.

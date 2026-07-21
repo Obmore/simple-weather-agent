@@ -34,9 +34,6 @@ weather_agent = ["py.typed"]
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -q"
 testpaths = ["tests"]
-markers = [
-  "live: calls a real public service and is skipped by default",
-]
 
 [tool.coverage.run]
 branch = true
