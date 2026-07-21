@@ -30,3 +30,5 @@ for a verified defect or a new requirement.
 - Published the project as the private `Obmore/simple-weather-agent` GitHub repository.
 - Preserved the owner-only collaborator invitation step documented in
   `docs/GITHUB_HANDOFF.md`.
+- Updated official GitHub Actions dependencies to their current Node 24-based major
+  versions after the first remote CI run reported Node 20 deprecation warnings.
