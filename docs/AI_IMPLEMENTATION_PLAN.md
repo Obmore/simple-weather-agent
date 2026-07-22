@@ -5,7 +5,7 @@ Last updated: 2026-07-22
 
 ## 1. Goal and scope
 
-Build a locally runnable Python command-line agent powered through an
+Build a locally runnable Python agent powered through an
 OpenAI-compatible Chat Completions API. The agent has one business capability:
 retrieve and answer with the current 2-metre air temperature for cities explicitly
 named in the user's question.
@@ -20,19 +20,20 @@ tool invoked by the LLM.
 | --- | --- | --- |
 | Python implementation | `src/weather_agent` package, Python 3.11+ | import and CLI tests |
 | OpenAI-compatible LLM | official `openai` SDK with configurable `base_url`, model, and API key | mocked tool-calling test |
-| Current city temperature only | strict system policy, one `get_current_temperatures` tool, constrained tool output | scope and refusal tests |
+| Current city temperature only | deterministic pre-model scope gate, strict system policy, one `get_current_temperatures` tool, constrained output | scope and refusal tests |
 | Cities named in the request | explicit city list plus city-to-question binding | multi-city and rejection tests |
 | Open-Meteo forecast API | `/v1/forecast?current=temperature_2m&timezone=auto`; separate Open-Meteo geocoding endpoint | HTTP mocks and live smoke check |
 | Observable reasoning and tool calls | per-run JSONL event log and optional console trace | trace schema test |
 | Bash execution | root-level `run.sh` | `bash run.sh --help` |
 | Machine-readable and visual inspection | `--json`, text timeline, self-contained HTML dashboard | CLI and escaping tests |
+| Optional interactive use | loopback-only UI started through `run.sh --ui`; same agent and per-question trace | HTTP, security, CLI-wiring, and browser acceptance tests |
 | Separate user and developer documentation | `docs/USER_GUIDE.md`, `docs/DEVELOPMENT.md` | documentation checklist |
 | Cursor Composer continuity | `AGENTS.md`, `.cursor/rules/project.mdc`, plan, ADRs, and changelog | file presence and language scan |
 
 ## 3. Architecture
 
 ```text
-CLI
+CLI or loopback UI
  |- Settings (environment variables)
  |- JsonlTracer (run ID and audit events)
  `- WeatherAgent (bounded tool-calling loop)
@@ -49,17 +50,21 @@ Layer boundaries:
 3. The weather client is deterministic, LLM-independent, and separately testable.
 4. The tracer has a stable append-only JSONL format and excludes secrets and full
    provider responses.
+5. The interactive UI is a presentation adapter over the same composition root; it
+   contains no weather, scope-policy, or provider logic.
 
 ## 4. Agent loop and safeguards
 
-1. The CLI submits one question to the agent.
-2. The system instruction defines the exclusive scope and refusal behavior.
-3. The LLM either returns a refusal/final response or calls the temperature tool.
-4. Tool arguments contain an array of city names validated against a JSON Schema.
-5. The client deduplicates cities, geocodes each one, and requests only
+1. The CLI or interactive UI adapter submits one question to the agent.
+2. A conservative deterministic gate rejects clear out-of-scope requests before the
+   model or weather provider can be called.
+3. The system instruction defines the exclusive scope and refusal behavior.
+4. The LLM either returns a refusal/final response or calls the temperature tool.
+5. Tool arguments contain an array of city names validated against a JSON Schema.
+6. The client deduplicates cities, geocodes each one, and requests only
    `current=temperature_2m` from the forecast API.
-6. Tool results return to the LLM, which produces a short temperature-only answer.
-7. A configured maximum number of LLM rounds prevents infinite loops.
+7. Tool results return to the LLM, which produces a short temperature-only answer.
+8. A configured maximum number of LLM rounds prevents infinite loops.
 
 Layered protection:
 
@@ -111,6 +116,7 @@ audit the execution path, not to reconstruct private model reasoning.
 - [x] Native Windows PowerShell wrapper delegates to the Bash entry point.
 - [x] Structured JSON output and evaluator-friendly demo script implemented.
 - [x] Text and self-contained HTML trace views implemented.
+- [x] Optional loopback-only interactive UI implemented and browser-tested.
 - [x] Separate user and developer documentation completed.
 - [x] Cursor and Codex project instructions completed.
 - [x] All project-authored language converted to English.
@@ -120,6 +126,7 @@ audit the execution path, not to reconstruct private model reasoning.
 - [x] Unit and integration-style tests pass.
 - [x] Ruff and mypy pass.
 - [x] Deterministic public output guard and early-failure tracing verified.
+- [x] Deterministic pre-model scope refusal verified against model non-compliance.
 - [x] Secret and repository-content checks completed.
 - [x] Private GitHub repository published without adding the collaborator.
 

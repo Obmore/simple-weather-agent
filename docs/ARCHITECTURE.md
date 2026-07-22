@@ -3,12 +3,14 @@
 ## System overview
 
 ```text
-user -> run.sh/run.ps1 -> CLI -> WeatherAgent -> OpenAI-compatible LLM
+user -> run.sh/run.ps1 -> CLI ---------> WeatherAgent -> OpenAI-compatible LLM
+                           |                  |
+                           |                  +-> get_current_temperatures
+                           |                        |
+                           |                        +-> Open-Meteo Geocoding API
+                           |                        +-> Open-Meteo Forecast API
                            |
-                           +-> get_current_temperatures
-                                 |
-                                 +-> Open-Meteo Geocoding API
-                                 +-> Open-Meteo Forecast API
+                           `-> loopback web UI -----'
 
 CLI + WeatherAgent + tool ---------------------------------> JSONL trace
                                                               |
@@ -41,13 +43,16 @@ Status: accepted.
 A system prompt is not a sufficient invariant by itself. Therefore:
 
 - only one narrow tool is available;
+- a deterministic pre-model gate rejects clear forecast, history, mixed-weather,
+  advice, general-knowledge, and prompt-override requests;
 - the tool accepts neither arbitrary URLs nor selectable weather fields;
 - tool city arguments are bound back to words in the user question;
 - the model must refuse the entire request when allowed and disallowed scopes are mixed.
 
 Normalized conservative similarity matching handles grammatical suffixes. This is a
-safety boundary rather than a general named-entity recognition system; false
-rejections remain diagnosable through the trace.
+safety boundary rather than a general natural-language understanding or named-entity
+recognition system. The input gate intentionally prefers a safe false rejection over
+an out-of-scope answer, and rejections remain diagnosable through the trace.
 
 ## ADR-004: Execution trace, not chain-of-thought
 
@@ -77,6 +82,21 @@ The optional UI is a self-contained HTML rendering of an existing local JSONL tr
 It starts no server, loads no remote assets, and introduces no runtime dependency or
 additional LLM tool. The required Bash CLI remains the canonical execution surface.
 
+## ADR-007: Optional interactive loopback UI
+
+Status: accepted.
+
+An interactive browser UI is an additive local presentation layer. It invokes the
+same `WeatherAgent` composition as the CLI, creates one JSONL trace per question, and
+renders only the structured `AgentResult` and an allowlisted trace projection. The
+required Bash entry point remains available and starts the UI through `--ui`.
+
+The HTTP server binds only to the exact `127.0.0.1` address, serves embedded assets,
+accepts bounded JSON requests, and exposes trace files only through validated run
+IDs. No secret or provider credential crosses the browser boundary. This keeps the
+extra UI within the task's locally runnable environment without broadening the
+agent's functional scope.
+
 ## Error model
 
 - Configuration and protocol failures produce controlled, descriptive user errors.
@@ -89,4 +109,5 @@ additional LLM tool. The required Bash CLI remains the canonical execution surfa
 User questions and tool data are stored locally in trace files. Treat those files as
 potentially sensitive and never commit them. Secrets may exist only in environment
 variables or the ignored `.env` file. User text is never executed as a command, URL,
-or arbitrary tool invocation.
+or arbitrary tool invocation. The interactive server is not a deployment target and
+must remain loopback-only.

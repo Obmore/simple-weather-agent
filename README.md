@@ -34,6 +34,20 @@ Machine-readable output and the local trace dashboard are also available:
 ./run.sh --show-trace latest --html trace-report.html
 ```
 
+Start the optional interactive UI on the loopback interface:
+
+```bash
+./run.sh --ui
+```
+
+```powershell
+./run.ps1 --ui
+```
+
+The browser UI runs the same constrained agent as the CLI, displays the validated
+temperature result and sanitized execution timeline, and lets you download the
+run's JSONL trace. It binds only to `127.0.0.1` and loads no remote web assets.
+
 Run the evaluator-friendly acceptance demonstration with:
 
 ```bash

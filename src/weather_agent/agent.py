@@ -41,6 +41,78 @@ SCOPE_REFUSAL = (
     "I can only answer current-temperature questions for cities explicitly named in the request."
 )
 
+_TEMPERATURE_INTENT_WORDS = frozenset(
+    {"temperature", "temperatures", "temp", "temps", "warm", "hot", "cold", "degree", "degrees"}
+)
+_CURRENT_INTENT_WORDS = frozenset({"current", "currently", "now"})
+_QUESTION_START_WORDS = frozenset({"what", "whats", "how", "is", "are"})
+_DISALLOWED_SCOPE_WORDS = frozenset(
+    {
+        "advice",
+        "advise",
+        "ago",
+        "airquality",
+        "climate",
+        "clothes",
+        "clothing",
+        "cloud",
+        "clouds",
+        "cloudy",
+        "date",
+        "dew",
+        "evening",
+        "expected",
+        "explain",
+        "forecast",
+        "future",
+        "historical",
+        "history",
+        "hourly",
+        "humid",
+        "humidity",
+        "ignore",
+        "instructions",
+        "jacket",
+        "joke",
+        "later",
+        "mayor",
+        "morning",
+        "next",
+        "past",
+        "poem",
+        "population",
+        "predict",
+        "prediction",
+        "precipitation",
+        "pressure",
+        "rain",
+        "rainfall",
+        "rainy",
+        "recommend",
+        "recommendation",
+        "rules",
+        "snow",
+        "snowy",
+        "sunrise",
+        "sunset",
+        "today",
+        "tomorrow",
+        "tonight",
+        "translate",
+        "umbrella",
+        "visibility",
+        "was",
+        "weather",
+        "wear",
+        "weekly",
+        "were",
+        "will",
+        "wind",
+        "windy",
+        "yesterday",
+    }
+)
+
 
 WEATHER_TOOL: dict[str, Any] = {
     "type": "function",
@@ -136,6 +208,24 @@ def _city_is_mentioned(city: str, question: str) -> bool:
     return True
 
 
+def _request_is_current_temperature_only(question: str) -> bool:
+    """Conservatively reject clearly out-of-scope requests before model execution."""
+
+    words = _normalize_words(question)
+    if not words:
+        return False
+    word_set = set(words)
+    if not word_set.intersection(_TEMPERATURE_INTENT_WORDS):
+        return False
+    if word_set.intersection(_DISALLOWED_SCOPE_WORDS):
+        return False
+    return bool(
+        word_set.intersection(_CURRENT_INTENT_WORDS)
+        or words[0] in _QUESTION_START_WORDS
+        or words[0] in _TEMPERATURE_INTENT_WORDS
+    )
+
+
 class WeatherAgent:
     """Run a bounded model/tool conversation for one user question."""
 
@@ -178,6 +268,25 @@ class WeatherAgent:
                 summary="Applying the current-temperature-only policy to the request.",
                 step="scope_check",
             )
+
+            if not _request_is_current_temperature_only(question):
+                self._tracer.emit(
+                    "reasoning_step",
+                    summary=(
+                        "The deterministic scope gate rejected the request before any model "
+                        "or weather call."
+                    ),
+                    step="deterministic_scope_refusal",
+                )
+                return self._finish(
+                    AgentResult(
+                        answer=SCOPE_REFUSAL,
+                        refused=True,
+                        temperatures=(),
+                        errors=(),
+                    ),
+                    0,
+                )
 
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},

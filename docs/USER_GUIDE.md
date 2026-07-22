@@ -84,8 +84,46 @@ Useful options:
 --json                  emit a structured result for automation
 --show-trace [TRACE]    display a trace by run ID, path, or "latest"
 --html [OUTPUT]         create a self-contained trace dashboard
+--ui                    start the loopback-only interactive web UI
+--ui-port PORT          choose the local UI port (default: 8765)
+--no-browser            start the UI without opening the default browser
 --help                  show complete CLI help
 ```
+
+## Interactive local UI
+
+The optional interactive UI is convenient for demonstrations and repeated questions.
+It does not replace the required Bash CLI and does not change the agent's scope.
+
+Start it with:
+
+```bash
+./run.sh --ui
+```
+
+On Windows PowerShell:
+
+```powershell
+./run.ps1 --ui
+```
+
+The application prints the local address and normally opens it in the default browser.
+Use `--no-browser` when you want to open the address manually, or select another port:
+
+```bash
+./run.sh --ui --no-browser --ui-port 9123
+```
+
+For each submitted question, the UI shows:
+
+- the application-validated answer and current-temperature measurements;
+- completion status, elapsed time, model rounds, and tool-call count;
+- the sanitized reasoning-decision and tool-call timeline;
+- the unique run ID and a link to download its local JSONL trace.
+
+The server accepts connections only on `127.0.0.1`. The API key remains in the
+Python process, and the page contains no external scripts, fonts, analytics, or CDN
+requests. Stop the server with `Ctrl+C` in its terminal.
 
 ## Structured JSON output
 
@@ -143,8 +181,11 @@ The script uses the same canonical `run.sh` entry point as normal operation.
 
 ## Output safeguards
 
-The LLM decides whether to call the narrowly scoped temperature tool and selects
-the city names. The application validates every selected city against the original
+Before contacting the LLM, a conservative Python scope gate rejects requests that
+lack a current-temperature intent or contain forecast, history, other weather data,
+advice, general-knowledge, or prompt-override indicators. For an eligible request,
+the LLM decides whether to call the narrowly scoped temperature tool and selects the
+city names. The application validates every selected city against the original
 question. After the tool round trip, Python renders the public answer only from the
 validated temperature payload. Model-generated text cannot add forecasts, humidity,
 advice, or unrelated content. Without a validated tool result, the application emits
@@ -160,3 +201,5 @@ a fixed scope refusal.
 - `City not found`: clarify the city name and include the country if needed.
 - Provider failure: verify `OPENAI_BASE_URL`, `OPENAI_MODEL`, and the API key, then
   inspect the trace file printed by the CLI.
+- UI port already in use: select another value with `--ui-port`, for example
+  `./run.sh --ui --ui-port 9123`.

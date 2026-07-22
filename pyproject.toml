@@ -29,7 +29,7 @@ temperature-agent = "weather_agent.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-weather_agent = ["py.typed"]
+weather_agent = ["py.typed", "web/*.html", "web/*.css", "web/*.js"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -q"

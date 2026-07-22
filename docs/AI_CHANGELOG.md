@@ -68,3 +68,20 @@ for a verified defect or a new requirement.
 - Fixed editable development installation under Windows Git Bash when project paths
   contain spaces.
 - Expanded the network-free suite to 35 tests with 89.21% branch-aware coverage.
+
+## 2026-07-22 - Interactive local UI
+
+- Added an optional browser UI started by `run.sh --ui` or `run.ps1 --ui`, while
+  preserving the Bash CLI as the canonical required entry point.
+- Reused the exact CLI agent composition so every submitted question keeps the same
+  scope enforcement, deterministic output guard, bounded loop, and JSONL trace.
+- Added validated temperature cards, execution metrics, a sanitized trace timeline,
+  and per-run JSONL downloads without exposing credentials or provider payloads.
+- Restricted the HTTP server to `127.0.0.1`, embedded every asset, bounded request
+  sizes, allowlisted public trace fields, and added restrictive browser headers.
+- Added a deterministic pre-model scope gate after live Ollama browser testing showed
+  that prompt-only enforcement could still tool-call on a forecast question.
+- Verified that forecast, historical, mixed-weather, general-knowledge, and
+  prompt-override requests are refused before any LLM or Open-Meteo call.
+- Added network-free HTTP and bridge tests for routing, validation, trace isolation,
+  loopback binding, controlled failures, and lifecycle cleanup.
