@@ -2,7 +2,8 @@
 
 A locally runnable Python agent powered by an OpenAI-compatible LLM. It answers
 only current-temperature questions for cities explicitly named in the user request,
-using the public Open-Meteo API. Every run produces a structured JSONL trace.
+using the public Open-Meteo API. Every run produces a structured JSONL trace, and
+validated tool data—not unrestricted model text—controls the public answer.
 
 ## Quick start
 
@@ -16,6 +17,27 @@ To mirror trace events to the console:
 
 ```bash
 ./run.sh --trace "What is the current temperature in Vienna?"
+```
+
+From Windows PowerShell, use the native wrapper. It locates Git Bash and delegates
+to the required Bash entry point:
+
+```powershell
+./run.ps1 --trace "What is the current temperature in Vienna?"
+```
+
+Machine-readable output and the local trace dashboard are also available:
+
+```bash
+./run.sh --json "What is the current temperature in Budapest?"
+./run.sh --show-trace latest
+./run.sh --show-trace latest --html trace-report.html
+```
+
+Run the evaluator-friendly acceptance demonstration with:
+
+```bash
+./scripts/demo.sh
 ```
 
 Detailed documentation:

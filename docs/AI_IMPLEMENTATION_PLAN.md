@@ -1,7 +1,7 @@
 # AI development implementation plan
 
 Status: approved baseline plan  
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 
 ## 1. Goal and scope
 
@@ -25,6 +25,7 @@ tool invoked by the LLM.
 | Open-Meteo forecast API | `/v1/forecast?current=temperature_2m&timezone=auto`; separate Open-Meteo geocoding endpoint | HTTP mocks and live smoke check |
 | Observable reasoning and tool calls | per-run JSONL event log and optional console trace | trace schema test |
 | Bash execution | root-level `run.sh` | `bash run.sh --help` |
+| Machine-readable and visual inspection | `--json`, text timeline, self-contained HTML dashboard | CLI and escaping tests |
 | Separate user and developer documentation | `docs/USER_GUIDE.md`, `docs/DEVELOPMENT.md` | documentation checklist |
 | Cursor Composer continuity | `AGENTS.md`, `.cursor/rules/project.mdc`, plan, ADRs, and changelog | file presence and language scan |
 
@@ -107,6 +108,9 @@ audit the execution path, not to reconstruct private model reasoning.
 ### M3 - Usability
 
 - [x] Bash entry point and CLI implemented.
+- [x] Native Windows PowerShell wrapper delegates to the Bash entry point.
+- [x] Structured JSON output and evaluator-friendly demo script implemented.
+- [x] Text and self-contained HTML trace views implemented.
 - [x] Separate user and developer documentation completed.
 - [x] Cursor and Codex project instructions completed.
 - [x] All project-authored language converted to English.
@@ -115,6 +119,7 @@ audit the execution path, not to reconstruct private model reasoning.
 
 - [x] Unit and integration-style tests pass.
 - [x] Ruff and mypy pass.
+- [x] Deterministic public output guard and early-failure tracing verified.
 - [x] Secret and repository-content checks completed.
 - [x] Private GitHub repository published without adding the collaborator.
 

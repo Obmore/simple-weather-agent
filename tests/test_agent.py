@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from weather_agent.agent import WeatherAgent, _city_is_mentioned
+from weather_agent.agent import SCOPE_REFUSAL, AgentResult, WeatherAgent, _city_is_mentioned
 from weather_agent.errors import AgentProtocolError
 from weather_agent.tracing import JsonlTracer
 from weather_agent.weather import TemperatureReading
@@ -89,21 +89,76 @@ def test_tool_call_round_trip(tmp_path: Path) -> None:
         "What is the current temperature in Budapest and Paris?"
     )
 
-    assert answer == ("The current temperature in Budapest and Paris is 21.5 degrees Celsius.")
+    assert "Budapest: 21.5 degrees Celsius" in answer
+    assert "Paris: 21.5 degrees Celsius" in answer
     assert weather.calls == [["Budapest", "Paris"]]
     second_messages = llm.chat.completions.requests[1]["messages"]
     assert second_messages[-1]["role"] == "tool"
     assert "21.5" in second_messages[-1]["content"]
 
 
+def test_empty_final_response_after_tool_call_is_retried(tmp_path: Path) -> None:
+    llm = FakeLlm(
+        [
+            _response(cities=["Budapest"]),
+            _response(content=""),
+            _response(content="The current temperature in Budapest is 21.5 degrees Celsius."),
+        ]
+    )
+    weather = FakeWeather()
+    trace_dir = tmp_path / "trace"
+    agent = WeatherAgent(
+        llm_client=llm,  # type: ignore[arg-type]
+        weather_client=weather,
+        tracer=JsonlTracer(trace_dir, run_id="retry-run"),
+        model="test-model",
+    )
+
+    answer = agent.run("What is the current temperature in Budapest?")
+
+    assert "Budapest: 21.5 degrees Celsius" in answer
+    assert len(llm.chat.completions.requests) == 3
+    retry_messages = llm.chat.completions.requests[2]["messages"]
+    assert retry_messages[-1]["role"] == "system"
+    records = [
+        json.loads(line)
+        for line in (trace_dir / "retry-run.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(
+        record["event"] == "reasoning_step" and record["data"].get("step") == "empty_response_retry"
+        for record in records
+    )
+
+
 def test_out_of_scope_response_does_not_call_weather(tmp_path: Path) -> None:
-    llm = FakeLlm([_response(content="I can only provide current temperatures for named cities.")])
+    llm = FakeLlm([_response(content="Here is a poem about Budapest.")])
     weather = FakeWeather()
 
     answer = _agent(tmp_path, llm, weather).run("Write a poem about Budapest.")
 
-    assert "current temperatures" in answer
+    assert answer == SCOPE_REFUSAL
     assert weather.calls == []
+
+
+def test_final_output_uses_only_validated_tool_data(tmp_path: Path) -> None:
+    llm = FakeLlm(
+        [
+            _response(cities=["Budapest"]),
+            _response(content="Humidity is 90 percent and rain is likely."),
+        ]
+    )
+    weather = FakeWeather()
+
+    result = _agent(tmp_path, llm, weather).run_result(
+        "What is the current temperature in Budapest?"
+    )
+
+    assert isinstance(result, AgentResult)
+    assert result.refused is False
+    assert result.temperatures[0]["requested_city"] == "Budapest"
+    assert "Budapest: 21.5 degrees Celsius" in result.answer
+    assert "humidity" not in result.answer.casefold()
+    assert "rain" not in result.answer.casefold()
 
 
 def test_unmentioned_tool_city_is_rejected_before_network(tmp_path: Path) -> None:
@@ -130,14 +185,24 @@ def test_city_binding_accepts_explicit_city_names() -> None:
 
 
 def test_empty_question_is_rejected(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "empty"
+    tracer = JsonlTracer(trace_dir, run_id="empty-run")
+    agent = WeatherAgent(
+        llm_client=FakeLlm([]),  # type: ignore[arg-type]
+        weather_client=FakeWeather(),
+        tracer=tracer,
+        model="test-model",
+    )
+
     with pytest.raises(AgentProtocolError, match="cannot be empty"):
-        _agent(tmp_path, FakeLlm([]), FakeWeather()).run("  ")
+        agent.run("  ")
+
+    records = [json.loads(line) for line in tracer.path.read_text(encoding="utf-8").splitlines()]
+    assert [record["event"] for record in records] == ["run_started", "run_failed"]
 
 
-@pytest.mark.parametrize(
-    "response",
-    [SimpleNamespace(choices=[]), _response(content="")],
-)
-def test_invalid_model_response_is_rejected(tmp_path: Path, response: Any) -> None:
+def test_model_response_without_choices_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AgentProtocolError):
-        _agent(tmp_path, FakeLlm([response]), FakeWeather()).run("How warm is Budapest?")
+        _agent(tmp_path, FakeLlm([SimpleNamespace(choices=[])]), FakeWeather()).run(
+            "How warm is Budapest?"
+        )
