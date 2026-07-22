@@ -3,7 +3,7 @@
 ## System overview
 
 ```text
-user -> run.sh -> CLI -> WeatherAgent -> OpenAI-compatible LLM
+user -> run.sh/run.ps1 -> CLI -> WeatherAgent -> OpenAI-compatible LLM
                            |
                            +-> get_current_temperatures
                                  |
@@ -11,6 +11,9 @@ user -> run.sh -> CLI -> WeatherAgent -> OpenAI-compatible LLM
                                  +-> Open-Meteo Forecast API
 
 CLI + WeatherAgent + tool ---------------------------------> JSONL trace
+                                                              |
+                                                              +-> text timeline
+                                                              `-> local HTML dashboard
 ```
 
 ## ADR-001: Chat Completions compatibility surface
@@ -54,6 +57,25 @@ The application logs explicit state transitions and concise execution decisions.
 It neither requests nor stores hidden chain-of-thought. JSONL files are append-only,
 one file is created per run, and every record includes a run ID, sequence number,
 and UTC timestamp.
+
+## ADR-005: Deterministic public output guard
+
+Status: accepted.
+
+The LLM controls tool selection but does not directly control the public response.
+Without a validated temperature tool result, the application returns a fixed scope
+refusal. After a tool round trip, Python renders the answer only from the validated
+city, temperature, unit, observation time, and error fields. This prevents prompt
+injection or provider drift from adding forecasts, other weather variables, advice,
+or general knowledge.
+
+## ADR-006: Static local trace dashboard
+
+Status: accepted.
+
+The optional UI is a self-contained HTML rendering of an existing local JSONL trace.
+It starts no server, loads no remote assets, and introduces no runtime dependency or
+additional LLM tool. The required Bash CLI remains the canonical execution surface.
 
 ## Error model
 

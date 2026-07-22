@@ -21,5 +21,8 @@ else
 fi
 
 "${VENV_PYTHON}" -m pip install --upgrade pip
-"${VENV_PYTHON}" -m pip install -e "${PROJECT_DIR}[dev]"
+(
+  cd "${PROJECT_DIR}"
+  "${VENV_PYTHON}" -m pip install -e ".[dev]"
+)
 echo "Development environment is ready."

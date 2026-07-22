@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from dataclasses import dataclass
 from difflib import SequenceMatcher
+from time import perf_counter
 from typing import Any, Protocol
 
 from weather_agent.errors import AgentProtocolError
@@ -30,6 +32,14 @@ Rules:
 For a refusal, explain briefly that you can only answer current-temperature questions
 for explicitly named cities. Do not call a tool for a refusal.
 """
+
+FINAL_ANSWER_RETRY_PROMPT = """The current-temperature tool has already completed.
+Return a concise final answer now using only the tool result. Do not call a tool.
+"""
+
+SCOPE_REFUSAL = (
+    "I can only answer current-temperature questions for cities explicitly named in the request."
+)
 
 
 WEATHER_TOOL: dict[str, Any] = {
@@ -74,6 +84,24 @@ class WeatherProviderProtocol(Protocol):
     def get_current_temperatures(
         self, cities: list[str]
     ) -> tuple[list[Any], list[dict[str, str]]]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class AgentResult:
+    """Validated public result returned by one agent run."""
+
+    answer: str
+    refused: bool
+    temperatures: tuple[dict[str, Any], ...]
+    errors: tuple[dict[str, str], ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "answer": self.answer,
+            "refused": self.refused,
+            "temperatures": list(self.temperatures),
+            "errors": list(self.errors),
+        }
 
 
 def _normalize_words(text: str) -> list[str]:
@@ -129,28 +157,35 @@ class WeatherAgent:
         self._max_cities = max_cities
 
     def run(self, question: str) -> str:
-        question = question.strip()
-        if not question:
-            raise AgentProtocolError("The question cannot be empty.")
+        return self.run_result(question).answer
 
+    def run_result(self, question: str) -> AgentResult:
+        """Run the agent and return validated text plus structured tool data."""
+
+        question = question.strip()
         self._tracer.emit(
             "run_started",
             summary="Agent run started.",
             question=question,
             model=self._model,
         )
-        self._tracer.emit(
-            "reasoning_step",
-            summary="Applying the current-temperature-only policy to the request.",
-            step="scope_check",
-        )
-
-        messages: list[dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": question},
-        ]
-
         try:
+            if not question:
+                raise AgentProtocolError("The question cannot be empty.")
+
+            self._tracer.emit(
+                "reasoning_step",
+                summary="Applying the current-temperature-only policy to the request.",
+                step="scope_check",
+            )
+
+            messages: list[dict[str, Any]] = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": question},
+            ]
+            tool_payloads: list[dict[str, Any]] = []
+            empty_response_retried = False
+
             for round_number in range(1, self._max_rounds + 1):
                 self._tracer.emit(
                     "model_request",
@@ -159,6 +194,7 @@ class WeatherAgent:
                     message_count=len(messages),
                     available_tools=["get_current_temperatures"],
                 )
+                model_started_at = perf_counter()
                 response = self._llm.chat.completions.create(
                     model=self._model,
                     messages=messages,
@@ -181,18 +217,56 @@ class WeatherAgent:
                     round=round_number,
                     tool_call_count=len(tool_calls),
                     has_content=bool(content),
+                    duration_ms=round((perf_counter() - model_started_at) * 1000, 3),
                 )
 
                 if not tool_calls:
-                    if not isinstance(content, str) or not content.strip():
-                        raise AgentProtocolError("The model returned an empty response.")
-                    answer = content.strip()
+                    if not tool_payloads:
+                        self._tracer.emit(
+                            "reasoning_step",
+                            summary=(
+                                "No validated temperature tool result exists; returning the "
+                                "application-controlled scope refusal."
+                            ),
+                            step="scope_refusal",
+                        )
+                        result = AgentResult(
+                            answer=SCOPE_REFUSAL,
+                            refused=True,
+                            temperatures=(),
+                            errors=(),
+                        )
+                        return self._finish(result, round_number)
+
+                    if (
+                        (not isinstance(content, str) or not content.strip())
+                        and not empty_response_retried
+                        and round_number < self._max_rounds
+                    ):
+                        empty_response_retried = True
+                        self._tracer.emit(
+                            "reasoning_step",
+                            summary=(
+                                "The model returned an empty final response; retrying once "
+                                "with an explicit answer instruction."
+                            ),
+                            step="empty_response_retry",
+                        )
+                        messages.append({"role": "system", "content": FINAL_ANSWER_RETRY_PROMPT})
+                        continue
+
                     self._tracer.emit(
-                        "run_finished",
-                        summary="Agent run completed.",
-                        answer=answer,
+                        "reasoning_step",
+                        summary=(
+                            "Rendering the public answer from validated tool data; model text "
+                            "cannot add out-of-scope content."
+                        ),
+                        step="output_guard",
                     )
-                    return answer
+                    return self._finish(
+                        self._result_from_tool_payloads(tool_payloads),
+                        round_number,
+                    )
 
                 messages.append(self._assistant_message(content, tool_calls))
                 self._tracer.emit(
@@ -206,6 +280,7 @@ class WeatherAgent:
 
                 for tool_call in tool_calls:
                     tool_result = self._execute_tool_call(tool_call, question)
+                    tool_payloads.append(tool_result)
                     messages.append(
                         {
                             "role": "tool",
@@ -226,6 +301,75 @@ class WeatherAgent:
             )
             raise
 
+    def _finish(self, result: AgentResult, round_number: int) -> AgentResult:
+        self._tracer.emit(
+            "run_finished",
+            summary="Agent run completed.",
+            answer=result.answer,
+            refused=result.refused,
+            round_count=round_number,
+            temperatures=list(result.temperatures),
+            errors=list(result.errors),
+        )
+        return result
+
+    @staticmethod
+    def _result_from_tool_payloads(payloads: list[dict[str, Any]]) -> AgentResult:
+        temperatures: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        for payload in payloads:
+            raw_temperatures = payload.get("temperatures", [])
+            if isinstance(raw_temperatures, list):
+                temperatures.extend(item for item in raw_temperatures if isinstance(item, dict))
+            raw_errors = payload.get("errors", [])
+            if isinstance(raw_errors, list):
+                errors.extend(
+                    {str(key): str(value) for key, value in item.items()}
+                    for item in raw_errors
+                    if isinstance(item, dict)
+                )
+
+        answer = WeatherAgent._format_tool_result(temperatures, errors)
+        return AgentResult(
+            answer=answer,
+            refused=False,
+            temperatures=tuple(temperatures),
+            errors=tuple(errors),
+        )
+
+    @staticmethod
+    def _format_tool_result(
+        temperatures: list[dict[str, Any]], errors: list[dict[str, str]]
+    ) -> str:
+        lines: list[str] = []
+        if temperatures:
+            heading = "Current temperature:" if len(temperatures) == 1 else "Current temperatures:"
+            lines.append(heading)
+            for reading in temperatures:
+                city = str(
+                    reading.get("resolved_city") or reading.get("requested_city") or "Unknown city"
+                )
+                temperature = reading.get("temperature", "unknown")
+                unit = str(reading.get("unit", "")).strip()
+                observed_at = str(reading.get("observed_at", "")).strip()
+                value = f"{temperature} {unit}".rstrip()
+                suffix = f" (observed at {observed_at})" if observed_at else ""
+                lines.append(f"- {city}: {value}{suffix}")
+
+        if errors:
+            if not temperatures:
+                lines.append("Current temperature data could not be retrieved:")
+            else:
+                lines.append("Errors:")
+            for error in errors:
+                city = error.get("city", "Requested city")
+                message = error.get("error", "Unknown temperature lookup error")
+                lines.append(f"- {city}: {message}")
+
+        if not lines:
+            return "Current temperature data could not be retrieved."
+        return "\n".join(lines)
+
     @staticmethod
     def _assistant_message(content: Any, tool_calls: list[Any]) -> dict[str, Any]:
         return {
@@ -245,6 +389,7 @@ class WeatherAgent:
         }
 
     def _execute_tool_call(self, tool_call: Any, question: str) -> dict[str, Any]:
+        tool_started_at = perf_counter()
         name = str(getattr(tool_call.function, "name", ""))
         raw_arguments = str(getattr(tool_call.function, "arguments", ""))
         self._tracer.emit(
@@ -291,6 +436,7 @@ class WeatherAgent:
                 tool_call_id=str(tool_call.id),
                 tool=name,
                 result=payload,
+                duration_ms=round((perf_counter() - tool_started_at) * 1000, 3),
             )
             self._tracer.emit(
                 "reasoning_step",
@@ -309,5 +455,6 @@ class WeatherAgent:
                 tool=name,
                 error_type=type(exc).__name__,
                 error=str(exc),
+                duration_ms=round((perf_counter() - tool_started_at) * 1000, 3),
             )
             return payload

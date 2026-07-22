@@ -37,6 +37,7 @@ src/weather_agent/
   agent.py       bounded tool-calling loop and scope policy
   cli.py         argument parsing and dependency wiring
   config.py      environment-backed configuration
+  trace_viewer.py text and self-contained HTML trace rendering
   tracing.py     per-run append-only JSONL trace
   weather.py     Open-Meteo geocoding and forecast client
 tests/           network-free automated tests
@@ -58,7 +59,15 @@ scripts/         setup and quality-gate commands
 The implementation uses the broadly supported OpenAI Chat Completions tool-calling
 format. In each round, the assistant returns either final text or tool calls. For a
 tool call, the assistant message and every tool result are appended to the message
-list before the next model round.
+list before the next model round. If a provider returns an empty response immediately
+after a successful tool call, the agent makes one traced final-answer retry within
+the existing `MAX_AGENT_ROUNDS` hard limit. The final public answer is rendered from
+validated tool data, not copied from unrestricted model output. A response without a
+validated tool result becomes an application-controlled scope refusal.
+
+`WeatherAgent.run_result` exposes the validated answer, refusal state, temperature
+records, and per-city errors. The CLI uses that object for `--json`; the compatibility
+`WeatherAgent.run` method still returns plain text.
 
 Provider replacement is a configuration task. After setting `OPENAI_BASE_URL`, the
 provider must support the Chat Completions `tools` and `tool_calls` fields. The
@@ -87,7 +96,20 @@ adapt result ranking and display names for another primary audience.
 - Agent tests use predefined LLM responses to prove the tool-calling round trip.
 - A dedicated test prevents the LLM from querying a city absent from the question.
 - The trace test verifies ordering, run IDs, and UTF-8 JSONL serialization.
+- Output-guard tests prove that unrelated model text cannot reach the user.
+- Trace-viewer tests cover run selection, text rendering, HTML escaping, and failures.
+- Entry-point contract tests cover the PowerShell wrapper, setup path safety, and demo.
 - Automated tests require no real API key.
+
+## Trace viewer and local dashboard
+
+`trace_viewer.py` reads only application-generated JSONL records. Text mode provides
+a compact terminal timeline. HTML mode writes a self-contained static dashboard with
+escaped event data and no external assets. It does not start a server or expose a new
+network surface.
+
+Each trace event contains `elapsed_ms`. Model and tool completion events also record
+their own `duration_ms`, enabling latency inspection without storing provider payloads.
 
 ## Change workflow for AI and Cursor Composer
 

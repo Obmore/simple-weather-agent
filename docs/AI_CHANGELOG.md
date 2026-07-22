@@ -39,3 +39,32 @@ for a verified defect or a new requirement.
 - Removed the redundant GitHub handoff document and unused pytest live-test marker.
 - Confirmed that local generated environments, caches, coverage data, bytecode, and
   editable-install metadata are ignored and safe to regenerate.
+
+## 2026-07-22 - Native PowerShell entry point
+
+- Added `run.ps1` so Windows PowerShell users can start the agent without relying on
+  the operating system's `.sh` file association.
+- Kept `run.sh` as the required canonical entry point; the PowerShell wrapper locates
+  Git Bash, forwards all arguments, and preserves the Bash process exit code.
+- Documented and tested the PowerShell launch path.
+
+## 2026-07-22 - Empty provider response recovery
+
+- Added one bounded, traced retry when an OpenAI-compatible provider returns an empty
+  final response immediately after a successful weather tool call.
+- Preserved `MAX_AGENT_ROUNDS` as the hard upper bound and kept empty responses in
+  other protocol states as errors.
+- Added regression coverage for the Ollama-compatible retry path.
+
+## 2026-07-22 - Compliance hardening and trace dashboard
+
+- Added an application-controlled scope refusal and deterministic rendering from
+  validated temperature tool data so unrestricted model text cannot reach users.
+- Created traces before configuration and input validation, including terminal events
+  for early failures and elapsed-time metrics for all events.
+- Added structured `--json` output, readable `--show-trace` timelines, and a
+  self-contained local HTML dashboard with escaped data and no remote assets.
+- Added `scripts/demo.sh` for single-city, multi-city, and refusal acceptance cases.
+- Fixed editable development installation under Windows Git Bash when project paths
+  contain spaces.
+- Expanded the network-free suite to 35 tests with 89.21% branch-aware coverage.

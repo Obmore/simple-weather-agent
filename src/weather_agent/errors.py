@@ -19,3 +19,7 @@ class WeatherServiceError(WeatherAgentError):
 
 class LocationNotFoundError(WeatherServiceError):
     """Raised when a requested city cannot be resolved."""
+
+
+class TraceViewerError(WeatherAgentError):
+    """Raised when a trace cannot be located or parsed."""
