@@ -93,3 +93,13 @@ for a verified defect or a new requirement.
   documentation.
 - Grouped input-scope checks by purpose instead of maintaining one long keyword list.
 - Tightened the weather-provider protocol type without changing runtime behavior.
+
+## 2026-07-22 - Scope-focused cleanup
+
+- Removed the separate static HTML trace dashboard and `--html` flag because the text
+  trace viewer and interactive UI already cover trace inspection.
+- Removed the unused UI health endpoint and unused Open-Meteo context-manager methods.
+- Removed Open-Meteo endpoint and language environment overrides from runtime settings;
+  constructor injection remains available for network-free tests.
+- Kept `--json`, the demo script, PowerShell wrapper, and interactive UI because they
+  support practical use or submission verification without changing the agent scope.

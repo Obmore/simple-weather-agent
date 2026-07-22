@@ -47,10 +47,6 @@ class Settings:
     request_timeout_seconds: float = 20.0
     max_agent_rounds: int = 4
     max_cities: int = 10
-    trace_dir: Path = Path("traces")
-    geocoding_language: str = "en"
-    geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
-    forecast_url: str = "https://api.open-meteo.com/v1/forecast"
 
     @classmethod
     def from_env(cls, env_file: str | Path = ".env") -> Settings:
@@ -69,8 +65,6 @@ class Settings:
             raise ConfigurationError("OPENAI_MODEL cannot be empty.")
 
         base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
-        trace_dir = Path(os.getenv("TRACE_DIR", "traces")).expanduser()
-
         return cls(
             api_key=api_key,
             model=model,
@@ -78,14 +72,4 @@ class Settings:
             request_timeout_seconds=_positive_float("REQUEST_TIMEOUT_SECONDS", 20.0),
             max_agent_rounds=_positive_int("MAX_AGENT_ROUNDS", 4),
             max_cities=_positive_int("MAX_CITIES", 10),
-            trace_dir=trace_dir,
-            geocoding_language=os.getenv("OPEN_METEO_GEOCODING_LANGUAGE", "en").strip() or "en",
-            geocoding_url=os.getenv(
-                "OPEN_METEO_GEOCODING_URL",
-                "https://geocoding-api.open-meteo.com/v1/search",
-            ).strip(),
-            forecast_url=os.getenv(
-                "OPEN_METEO_FORECAST_URL",
-                "https://api.open-meteo.com/v1/forecast",
-            ).strip(),
         )

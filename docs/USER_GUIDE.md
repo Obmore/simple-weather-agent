@@ -47,9 +47,6 @@ agent refuses the entire request.
 
 The `.env` file is ignored by Git. Never commit an API key.
 
-`OPEN_METEO_GEOCODING_LANGUAGE=en` controls the language used to rank and display
-geocoding results. Override it when users commonly enter localized city names.
-
 ## Running the agent
 
 The first run creates `.venv` and installs runtime dependencies:
@@ -83,7 +80,6 @@ Useful options:
 --base-url URL          override the provider endpoint for this run
 --json                  emit a structured result for automation
 --show-trace [TRACE]    display a trace by run ID, path, or "latest"
---html [OUTPUT]         create a self-contained trace dashboard
 --ui                    start the loopback-only interactive web UI
 --ui-port PORT          choose the local UI port (default: 8765)
 --no-browser            start the UI without opening the default browser
@@ -157,15 +153,6 @@ Display the latest run as a readable terminal timeline:
 ```bash
 ./run.sh --show-trace latest
 ```
-
-Create an optional, self-contained local HTML dashboard:
-
-```bash
-./run.sh --show-trace latest --html trace-report.html
-```
-
-The HTML file contains no remote scripts, fonts, or analytics. Open it in a browser
-to inspect run status, timing, model rounds, tool calls, and events.
 
 ## Acceptance demonstration
 

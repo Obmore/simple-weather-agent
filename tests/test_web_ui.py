@@ -79,9 +79,6 @@ def test_interactive_ui_serves_local_assets_with_security_headers(
     assert script.status_code == 200
     assert "fetch" in script.text
 
-    health = httpx.get(f"{base_url}/api/health", timeout=5)
-    assert health.json() == {"status": "ok"}
-
 
 def test_interactive_ui_runs_question_and_returns_structured_trace(
     ui_server: tuple[str, list[str]],

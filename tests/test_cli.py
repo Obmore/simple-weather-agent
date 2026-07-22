@@ -27,7 +27,7 @@ def test_main_starts_loopback_ui_without_reading_a_question(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    settings = Settings(api_key="key", trace_dir=tmp_path)
+    settings = Settings(api_key="key")
     captured: dict[str, object] = {}
 
     def fake_serve_ui(**kwargs: object) -> int:
@@ -37,7 +37,9 @@ def test_main_starts_loopback_ui_without_reading_a_question(
     monkeypatch.setattr(cli.Settings, "from_env", lambda: settings)
     monkeypatch.setattr(cli, "serve_ui", fake_serve_ui)
 
-    assert cli.main(["--ui", "--ui-port", "9123", "--no-browser"]) == 0
+    assert (
+        cli.main(["--ui", "--ui-port", "9123", "--no-browser", "--trace-dir", str(tmp_path)]) == 0
+    )
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 9123
     assert captured["trace_dir"] == tmp_path
@@ -49,7 +51,7 @@ def test_ui_question_runner_returns_answer_and_safe_trace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    settings = Settings(api_key="key", trace_dir=tmp_path)
+    settings = Settings(api_key="key")
 
     def fake_run_agent(**kwargs: object) -> AgentResult:
         tracer = kwargs["tracer"]
@@ -84,7 +86,7 @@ def test_ui_question_runner_records_expected_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    settings = Settings(api_key="key", trace_dir=tmp_path)
+    settings = Settings(api_key="key")
 
     def fail(**_: object) -> AgentResult:
         raise WeatherServiceError("Weather data is temporarily unavailable.")
@@ -111,7 +113,7 @@ def test_main_wires_dependencies_and_closes_weather(
     capsys: pytest.CaptureFixture[str],
     base_url: str | None,
 ) -> None:
-    settings = Settings(api_key="key", base_url=base_url, trace_dir=tmp_path)
+    settings = Settings(api_key="key", base_url=base_url)
     sdk_calls: list[dict[str, object]] = []
 
     class StubWeather:
@@ -153,7 +155,7 @@ def test_main_wires_dependencies_and_closes_weather(
     monkeypatch.setattr(cli, "OpenMeteoClient", lambda **_: weather)
     monkeypatch.setattr(cli, "WeatherAgent", StubAgent)
 
-    exit_code = cli.main(["How warm is Budapest right now?"])
+    exit_code = cli.main(["--trace-dir", str(tmp_path), "How warm is Budapest right now?"])
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -168,7 +170,7 @@ def test_main_emits_machine_readable_json(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    settings = Settings(api_key="key", trace_dir=tmp_path)
+    settings = Settings(api_key="key")
 
     class StubWeather:
         def close(self) -> None:
@@ -191,7 +193,7 @@ def test_main_emits_machine_readable_json(
     monkeypatch.setattr(cli, "OpenMeteoClient", lambda **_: StubWeather())
     monkeypatch.setattr(cli, "WeatherAgent", StubAgent)
 
-    assert cli.main(["--json", "How warm is Budapest?"]) == 0
+    assert cli.main(["--json", "--trace-dir", str(tmp_path), "How warm is Budapest?"]) == 0
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "completed"
@@ -200,7 +202,7 @@ def test_main_emits_machine_readable_json(
     assert payload["trace"].endswith(".jsonl")
 
 
-def test_main_shows_text_and_html_trace_without_provider_configuration(
+def test_main_shows_text_trace_without_provider_configuration(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -222,30 +224,6 @@ def test_main_shows_text_and_html_trace_without_provider_configuration(
 
     assert cli.main(["--trace-dir", str(tmp_path), "--show-trace", "latest"]) == 0
     assert "Trace viewer" in capsys.readouterr().out
-
-    report_path = tmp_path / "dashboard.html"
-    assert (
-        cli.main(
-            [
-                "--trace-dir",
-                str(tmp_path),
-                "--show-trace",
-                "viewer",
-                "--html",
-                str(report_path),
-            ]
-        )
-        == 0
-    )
-    assert report_path.is_file()
-    assert "HTML trace dashboard" in capsys.readouterr().out
-
-
-def test_main_rejects_html_without_trace_selector(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert cli.main(["--trace-dir", str(tmp_path), "--html"]) == 2
-    assert "requires --show-trace" in capsys.readouterr().err
 
 
 def test_main_reports_configuration_error(

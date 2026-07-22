@@ -8,11 +8,9 @@ import pytest
 
 from weather_agent.errors import TraceViewerError
 from weather_agent.trace_viewer import (
-    format_html_trace,
     format_text_trace,
     load_trace,
     resolve_trace_path,
-    write_html_report,
 )
 
 
@@ -78,23 +76,6 @@ def test_trace_viewer_resolves_latest_and_formats_text(tmp_path: Path) -> None:
     assert "TOOL CALL COMPLETED" in text
     assert "Budapest, Hungary: 21.5 degrees Celsius" in text
     assert "Total elapsed: 2000.0 ms" in text
-
-
-def test_trace_viewer_generates_self_contained_safe_html(tmp_path: Path) -> None:
-    trace_path = tmp_path / "trace.jsonl"
-    _write_trace(trace_path, "<unsafe>")
-
-    html = format_html_trace(load_trace(trace_path))
-
-    assert "<!doctype html>" in html.casefold()
-    assert "Trace dashboard" in html
-    assert "&lt;unsafe&gt;" in html
-    assert "<unsafe>" not in html
-    assert "Budapest, Hungary" in html
-
-    report_path = write_html_report(load_trace(trace_path), tmp_path / "ui" / "report.html")
-    assert report_path.is_file()
-    assert report_path.read_text(encoding="utf-8").startswith("<!doctype html>")
 
 
 def test_trace_viewer_resolves_run_id_and_explicit_path(tmp_path: Path) -> None:

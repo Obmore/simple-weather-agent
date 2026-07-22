@@ -20,7 +20,6 @@ from weather_agent.trace_viewer import (
     format_text_trace,
     load_trace,
     resolve_trace_path,
-    write_html_report,
 )
 from weather_agent.tracing import JsonlTracer
 from weather_agent.weather import OpenMeteoClient
@@ -57,14 +56,6 @@ def build_parser() -> argparse.ArgumentParser:
         const="latest",
         metavar="TRACE",
         help="Show a readable trace timeline by run ID, path, or 'latest'.",
-    )
-    parser.add_argument(
-        "--html",
-        nargs="?",
-        const=Path("trace-report.html"),
-        type=Path,
-        metavar="OUTPUT",
-        help="With --show-trace, write a self-contained HTML dashboard.",
     )
     parser.add_argument(
         "--ui",
@@ -126,9 +117,6 @@ def _run_agent(
         )
     llm_client = cast(LlmClientProtocol, sdk_client)
     weather_client = OpenMeteoClient(
-        geocoding_language=settings.geocoding_language,
-        geocoding_url=settings.geocoding_url,
-        forecast_url=settings.forecast_url,
         timeout_seconds=settings.request_timeout_seconds,
     )
     try:
@@ -213,19 +201,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             trace_path = resolve_trace_path(trace_dir, args.show_trace)
             records = load_trace(trace_path)
-            if args.html:
-                report_path = write_html_report(records, args.html)
-                print(f"HTML trace dashboard: {report_path}")
-            else:
-                print(format_text_trace(records))
+            print(format_text_trace(records))
             return 0
         except WeatherAgentError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 2
-
-    if args.html:
-        print("Error: --html requires --show-trace.", file=sys.stderr)
-        return 2
 
     if args.ui:
         if args.question:
@@ -238,14 +218,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             settings = Settings.from_env()
             model = args.model or settings.model
             base_url = args.base_url or settings.base_url
-            ui_trace_dir = args.trace_dir or settings.trace_dir
             return serve_ui(
                 host="127.0.0.1",
                 port=args.ui_port,
-                trace_dir=ui_trace_dir,
+                trace_dir=trace_dir,
                 question_runner=_ui_question_runner(
                     settings=settings,
-                    trace_dir=ui_trace_dir,
+                    trace_dir=trace_dir,
                     model=model,
                     base_url=base_url,
                 ),

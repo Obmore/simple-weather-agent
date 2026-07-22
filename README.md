@@ -25,12 +25,11 @@ to the required Bash entry point:
 ./run.ps1 --trace "What is the current temperature in Vienna?"
 ```
 
-Machine-readable output and the local trace dashboard are also available:
+Machine-readable output and a readable trace timeline are also available:
 
 ```bash
 ./run.sh --json "What is the current temperature in Budapest?"
 ./run.sh --show-trace latest
-./run.sh --show-trace latest --html trace-report.html
 ```
 
 Start the optional interactive UI on the loopback interface:

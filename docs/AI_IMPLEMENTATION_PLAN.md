@@ -25,7 +25,7 @@ tool invoked by the LLM.
 | Open-Meteo forecast API | `/v1/forecast?current=temperature_2m&timezone=auto`; separate Open-Meteo geocoding endpoint | HTTP mocks and live smoke check |
 | Observable reasoning and tool calls | per-run JSONL event log and optional console trace | trace schema test |
 | Bash execution | root-level `run.sh` | `bash run.sh --help` |
-| Machine-readable and visual inspection | `--json`, text timeline, self-contained HTML dashboard | CLI and escaping tests |
+| Machine-readable and visual inspection | `--json`, text timeline, and interactive UI | CLI and UI tests |
 | Optional interactive use | loopback-only UI started through `run.sh --ui`; same agent and per-question trace | HTTP, security, CLI-wiring, and browser acceptance tests |
 | Separate user and developer documentation | `docs/USER_GUIDE.md`, `docs/DEVELOPMENT.md` | documentation checklist |
 | Cursor Composer continuity | `AGENTS.md`, `.cursor/rules/project.mdc`, plan, ADRs, and changelog | file presence and language scan |
@@ -115,9 +115,10 @@ audit the execution path, not to reconstruct private model reasoning.
 - [x] Bash entry point and CLI implemented.
 - [x] Native Windows PowerShell wrapper delegates to the Bash entry point.
 - [x] Structured JSON output and sample-case demo script implemented.
-- [x] Text and self-contained HTML trace views implemented.
+- [x] Readable text trace view implemented.
 - [x] Optional loopback-only interactive UI implemented and browser-tested.
 - [x] User-facing text and UI reviewed for plain, project-specific wording.
+- [x] Redundant trace dashboard and unused runtime options removed.
 - [x] Separate user and developer documentation completed.
 - [x] Cursor and Codex project instructions completed.
 - [x] All project-authored language converted to English.
@@ -142,8 +143,7 @@ The following choices remain configurable and do not block implementation:
 
 - provider and model through `OPENAI_BASE_URL` and `OPENAI_MODEL`;
 - timeout, retry behavior, and maximum agent rounds;
-- trace directory and console trace behavior;
-- geocoding response language through `OPEN_METEO_GEOCODING_LANGUAGE`.
+- trace directory and console trace behavior.
 
 Before the next AI session, read `AGENTS.md`, this plan, `docs/ARCHITECTURE.md`, and
 `docs/DEVELOPMENT.md` in that order. At the end of the session, update the milestone

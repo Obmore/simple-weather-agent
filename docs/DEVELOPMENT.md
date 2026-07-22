@@ -37,7 +37,7 @@ src/weather_agent/
   agent.py       bounded tool-calling loop and scope policy
   cli.py         argument parsing and dependency wiring
   config.py      environment-backed configuration
-  trace_viewer.py text and self-contained HTML trace rendering
+  trace_viewer.py readable terminal rendering for JSONL traces
   tracing.py     per-run append-only JSONL trace
   weather.py     Open-Meteo geocoding and forecast client
   web_ui.py      loopback-only HTTP adapter for interactive runs
@@ -93,9 +93,6 @@ The adapter forwards only `current.temperature_2m`, `current.time`,
 `current_units.temperature_2m`, and timezone fields. Multiple cities currently use
 separate requests, which provides straightforward error handling and partial results.
 
-The default geocoding language is `en`. Use `OPEN_METEO_GEOCODING_LANGUAGE` to
-adapt result ranking and display names for another primary audience.
-
 ## Test strategy
 
 - HTTP tests use `httpx.MockTransport` and do not access the network.
@@ -104,18 +101,16 @@ adapt result ranking and display names for another primary audience.
 - Scope tests check that disallowed requests reach neither the LLM nor Open-Meteo.
 - The trace test verifies ordering, run IDs, and UTF-8 JSONL serialization.
 - Output-guard tests prove that unrelated model text cannot reach the user.
-- Trace-viewer tests cover run selection, text rendering, HTML escaping, and failures.
+- Trace-viewer tests cover run selection, text rendering, and failures.
 - Interactive-UI tests use an ephemeral loopback port and verify assets, security
   headers, input validation, safe trace projection, and trace-download isolation.
 - Entry-point contract tests cover the PowerShell wrapper, setup path safety, and demo.
 - Automated tests require no real API key.
 
-## Trace viewer and local dashboard
+## Trace viewer
 
 `trace_viewer.py` reads only application-generated JSONL records. Text mode provides
-a compact terminal timeline. HTML mode writes a self-contained static dashboard with
-escaped event data and no external assets. It does not start a server or expose a new
-network surface.
+a compact terminal timeline for a selected run.
 
 Each trace event contains `elapsed_ms`. Model and tool completion events also record
 their own `duration_ms`, enabling latency inspection without storing provider payloads.

@@ -38,13 +38,11 @@ class OpenMeteoClient:
     def __init__(
         self,
         *,
-        geocoding_language: str = "en",
         geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search",
         forecast_url: str = "https://api.open-meteo.com/v1/forecast",
         timeout_seconds: float = 20.0,
         http_client: httpx.Client | None = None,
     ) -> None:
-        self._geocoding_language = geocoding_language
         self._geocoding_url = geocoding_url
         self._forecast_url = forecast_url
         self._owns_client = http_client is None
@@ -59,12 +57,6 @@ class OpenMeteoClient:
         if self._owns_client:
             self._client.close()
 
-    def __enter__(self) -> OpenMeteoClient:
-        return self
-
-    def __exit__(self, *_: object) -> None:
-        self.close()
-
     def resolve_city(self, city: str) -> ResolvedLocation:
         city = city.strip()
         if not city:
@@ -75,7 +67,7 @@ class OpenMeteoClient:
             params={
                 "name": city,
                 "count": 1,
-                "language": self._geocoding_language,
+                "language": "en",
                 "format": "json",
             },
             service_name="Open-Meteo geocoding",

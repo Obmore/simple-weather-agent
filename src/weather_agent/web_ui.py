@@ -128,9 +128,6 @@ def create_server(
                 filename, content_type = asset
                 self._send_bytes(HTTPStatus.OK, _asset_bytes(filename), content_type)
                 return
-            if path == "/api/health":
-                self._send_json(HTTPStatus.OK, {"status": "ok"})
-                return
             if path.startswith("/api/traces/"):
                 run_id = path.removeprefix("/api/traces/")
                 if not _RUN_ID_PATTERN.fullmatch(run_id):

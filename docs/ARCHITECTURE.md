@@ -14,8 +14,7 @@ user -> run.sh/run.ps1 -> CLI ---------> WeatherAgent -> OpenAI-compatible LLM
 
 CLI + WeatherAgent + tool ---------------------------------> JSONL trace
                                                               |
-                                                              +-> text timeline
-                                                              `-> local HTML dashboard
+                                                              `-> text timeline
 ```
 
 ## ADR-001: Chat Completions compatibility surface
@@ -73,15 +72,7 @@ unit, observation time, and error fields returned by the tool. This keeps foreca
 other weather variables, advice, and general knowledge out of the answer even if a
 model response includes them.
 
-## ADR-006: Static local trace dashboard
-
-Status: accepted.
-
-The optional UI is a self-contained HTML rendering of an existing local JSONL trace.
-It starts no server, loads no remote assets, and introduces no runtime dependency or
-additional LLM tool. The Bash CLI remains available as the main execution surface.
-
-## ADR-007: Optional interactive loopback UI
+## ADR-006: Optional interactive loopback UI
 
 Status: accepted.
 
