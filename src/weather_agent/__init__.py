@@ -1,4 +1,4 @@
-"""A narrowly scoped, OpenAI-compatible current-temperature agent."""
+"""OpenAI-compatible agent for current city temperatures."""
 
 from weather_agent.agent import AgentResult, WeatherAgent
 from weather_agent.config import Settings

@@ -92,8 +92,8 @@ Useful options:
 
 ## Interactive local UI
 
-The optional interactive UI is convenient for demonstrations and repeated questions.
-It does not replace the required Bash CLI and does not change the agent's scope.
+The optional UI is useful when running several questions. It uses the same agent and
+scope rules as the CLI.
 
 Start it with:
 
@@ -114,11 +114,11 @@ Use `--no-browser` when you want to open the address manually, or select another
 ./run.sh --ui --no-browser --ui-port 9123
 ```
 
-For each submitted question, the UI shows:
+For each question, the UI shows:
 
-- the application-validated answer and current-temperature measurements;
+- the answer and current-temperature measurements;
 - completion status, elapsed time, model rounds, and tool-call count;
-- the sanitized reasoning-decision and tool-call timeline;
+- the reasoning-decision and tool-call timeline;
 - the unique run ID and a link to download its local JSONL trace.
 
 The server accepts connections only on `127.0.0.1`. The API key remains in the
@@ -127,7 +127,7 @@ requests. Stop the server with `Ctrl+C` in its terminal.
 
 ## Structured JSON output
 
-Use `--json` when another program needs the validated temperatures and trace ID:
+Use `--json` when another program needs the temperatures and trace ID:
 
 ```bash
 ./run.sh --json "What is the current temperature in Budapest and Paris?"
@@ -165,8 +165,7 @@ Create an optional, self-contained local HTML dashboard:
 ```
 
 The HTML file contains no remote scripts, fonts, or analytics. Open it in a browser
-to inspect run status, total elapsed time, model rounds, tool calls, and the complete
-sanitized event timeline.
+to inspect run status, timing, model rounds, tool calls, and events.
 
 ## Acceptance demonstration
 
@@ -177,27 +176,22 @@ request, and a rejected forecast request, then displays each trace:
 ./scripts/demo.sh
 ```
 
-The script uses the same canonical `run.sh` entry point as normal operation.
+The script uses the normal `run.sh` entry point.
 
-## Output safeguards
+## Scope enforcement
 
-Before contacting the LLM, a conservative Python scope gate rejects requests that
-lack a current-temperature intent or contain forecast, history, other weather data,
-advice, general-knowledge, or prompt-override indicators. For an eligible request,
-the LLM decides whether to call the narrowly scoped temperature tool and selects the
-city names. The application validates every selected city against the original
-question. After the tool round trip, Python renders the public answer only from the
-validated temperature payload. Model-generated text cannot add forecasts, humidity,
-advice, or unrelated content. Without a validated tool result, the application emits
-a fixed scope refusal.
+Python rejects clear forecast, history, other weather, advice, and unrelated requests
+before calling the model. For an accepted request, the model selects the city names
+and calls the single temperature tool. Each city must also appear in the original
+question. The final answer is formatted from the tool result rather than copied from
+the model response.
 
 ## Troubleshooting
 
 - `OPENAI_API_KEY is missing`: the value is missing or empty in `.env`.
 - The model does not call the tool: select a model with function/tool calling support.
 - An empty response after a successful tool call is retried once automatically and
-  recorded in the trace; validated tool data remains available as a deterministic
-  fallback.
+  recorded in the trace; the tool result is still used for the final answer.
 - `City not found`: clarify the city name and include the country if needed.
 - Provider failure: verify `OPENAI_BASE_URL`, `OPENAI_MODEL`, and the API key, then
   inspect the trace file printed by the CLI.

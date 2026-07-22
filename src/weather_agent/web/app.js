@@ -67,9 +67,13 @@ function renderTimeline(events) {
 function renderResult(payload, ok) {
   runPanel.hidden = false;
   runPanel.classList.toggle("error-state", !ok);
-  runStatus.textContent = ok
-    ? payload.status === "refused" ? "Request safely refused" : "Run completed"
-    : "Run failed";
+  if (!ok) {
+    runStatus.textContent = "Run failed";
+  } else if (payload.status === "refused") {
+    runStatus.textContent = "Request not supported";
+  } else {
+    runStatus.textContent = "Run completed";
+  }
   answer.textContent = payload.answer || payload.error || "No answer was returned.";
   runId.textContent = payload.run_id ? `Run ${payload.run_id}` : "";
 
@@ -102,7 +106,7 @@ form.addEventListener("submit", async (event) => {
   if (!question) return;
 
   submitButton.disabled = true;
-  submitButton.querySelector("span").textContent = "Running…";
+  submitButton.querySelector("span").textContent = "Checking…";
   try {
     const response = await fetch("/api/ask", {
       method: "POST",
@@ -115,7 +119,7 @@ form.addEventListener("submit", async (event) => {
     renderResult({ error: "Could not reach the local Python service.", events: [] }, false);
   } finally {
     submitButton.disabled = false;
-    submitButton.querySelector("span").textContent = "Run agent";
+    submitButton.querySelector("span").textContent = "Check temperature";
   }
 });
 

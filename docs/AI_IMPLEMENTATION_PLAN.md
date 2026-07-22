@@ -20,7 +20,7 @@ tool invoked by the LLM.
 | --- | --- | --- |
 | Python implementation | `src/weather_agent` package, Python 3.11+ | import and CLI tests |
 | OpenAI-compatible LLM | official `openai` SDK with configurable `base_url`, model, and API key | mocked tool-calling test |
-| Current city temperature only | deterministic pre-model scope gate, strict system policy, one `get_current_temperatures` tool, constrained output | scope and refusal tests |
+| Current city temperature only | input policy, system prompt, one `get_current_temperatures` tool, constrained output | scope and refusal tests |
 | Cities named in the request | explicit city list plus city-to-question binding | multi-city and rejection tests |
 | Open-Meteo forecast API | `/v1/forecast?current=temperature_2m&timezone=auto`; separate Open-Meteo geocoding endpoint | HTTP mocks and live smoke check |
 | Observable reasoning and tool calls | per-run JSONL event log and optional console trace | trace schema test |
@@ -56,7 +56,7 @@ Layer boundaries:
 ## 4. Agent loop and safeguards
 
 1. The CLI or interactive UI adapter submits one question to the agent.
-2. A conservative deterministic gate rejects clear out-of-scope requests before the
+2. The input policy rejects clear out-of-scope requests before the
    model or weather provider can be called.
 3. The system instruction defines the exclusive scope and refusal behavior.
 4. The LLM either returns a refusal/final response or calls the temperature tool.
@@ -66,7 +66,7 @@ Layer boundaries:
 7. Tool results return to the LLM, which produces a short temperature-only answer.
 8. A configured maximum number of LLM rounds prevents infinite loops.
 
-Layered protection:
+Enforcement points:
 
 - no generic HTTP tool or arbitrary forecast parameter is exposed;
 - tool output contains only city, temperature, unit, and observation time;
@@ -114,9 +114,10 @@ audit the execution path, not to reconstruct private model reasoning.
 
 - [x] Bash entry point and CLI implemented.
 - [x] Native Windows PowerShell wrapper delegates to the Bash entry point.
-- [x] Structured JSON output and evaluator-friendly demo script implemented.
+- [x] Structured JSON output and sample-case demo script implemented.
 - [x] Text and self-contained HTML trace views implemented.
 - [x] Optional loopback-only interactive UI implemented and browser-tested.
+- [x] User-facing text and UI reviewed for plain, project-specific wording.
 - [x] Separate user and developer documentation completed.
 - [x] Cursor and Codex project instructions completed.
 - [x] All project-authored language converted to English.
@@ -125,8 +126,8 @@ audit the execution path, not to reconstruct private model reasoning.
 
 - [x] Unit and integration-style tests pass.
 - [x] Ruff and mypy pass.
-- [x] Deterministic public output guard and early-failure tracing verified.
-- [x] Deterministic pre-model scope refusal verified against model non-compliance.
+- [x] Tool-result output formatting and early-failure tracing verified.
+- [x] Pre-model scope refusal verified against model non-compliance.
 - [x] Secret and repository-content checks completed.
 - [x] Private GitHub repository published without adding the collaborator.
 

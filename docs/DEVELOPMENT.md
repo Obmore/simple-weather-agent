@@ -47,7 +47,7 @@ docs/            user, developer, architecture, and AI documentation
 scripts/         setup and quality-gate commands
 ```
 
-## Critical invariants
+## Rules that must not change
 
 1. The agent has exactly one tool: `get_current_temperatures`.
 2. The forecast request asks for no weather data beyond `current=temperature_2m`.
@@ -59,11 +59,9 @@ scripts/         setup and quality-gate commands
 
 ## Agent protocol
 
-The implementation first applies a deterministic, conservative scope gate. Missing
-temperature intent and explicit forecast, history, non-temperature weather, advice,
-general-knowledge, or prompt-override indicators produce a traced refusal without
-calling the model. This is intentionally allowed to prefer a safe false rejection
-over an out-of-scope answer.
+The input policy rejects clear out-of-scope requests before calling the model. It is
+deliberately conservative: rejecting an ambiguous question is preferable to answering
+outside the assignment's scope.
 
 Eligible requests use the broadly supported OpenAI Chat Completions tool-calling
 format. In each round, the assistant returns either final text or tool calls. For a
@@ -71,17 +69,16 @@ tool call, the assistant message and every tool result are appended to the messa
 list before the next model round. If a provider returns an empty response immediately
 after a successful tool call, the agent makes one traced final-answer retry within
 the existing `MAX_AGENT_ROUNDS` hard limit. The final public answer is rendered from
-validated tool data, not copied from unrestricted model output. A response without a
-validated tool result becomes an application-controlled scope refusal.
+tool data, not copied from the model output. A response without a temperature tool
+result becomes a scope refusal.
 
 `WeatherAgent.run_result` exposes the validated answer, refusal state, temperature
 records, and per-city errors. The CLI uses that object for `--json`; the compatibility
 `WeatherAgent.run` method still returns plain text.
 
-Provider replacement is a configuration task. After setting `OPENAI_BASE_URL`, the
-provider must support the Chat Completions `tools` and `tool_calls` fields. The
-default model matched the official current OpenAI model guidance when the plan was
-created, but remains configurable for access and compatibility.
+After setting `OPENAI_BASE_URL`, the provider must support the Chat Completions
+`tools` and `tool_calls` fields. The model name is configurable because availability
+differs between providers.
 
 ## Open-Meteo integration
 
@@ -104,8 +101,7 @@ adapt result ranking and display names for another primary audience.
 - HTTP tests use `httpx.MockTransport` and do not access the network.
 - Agent tests use predefined LLM responses to prove the tool-calling round trip.
 - A dedicated test prevents the LLM from querying a city absent from the question.
-- Parametrized scope-gate tests prove that disallowed requests reach neither the LLM
-  nor Open-Meteo, even when a simulated model would have requested the tool.
+- Scope tests check that disallowed requests reach neither the LLM nor Open-Meteo.
 - The trace test verifies ordering, run IDs, and UTF-8 JSONL serialization.
 - Output-guard tests prove that unrelated model text cannot reach the user.
 - Trace-viewer tests cover run selection, text rendering, HTML escaping, and failures.
@@ -126,10 +122,9 @@ their own `duration_ms`, enabling latency inspection without storing provider pa
 
 ## Interactive UI boundary
 
-`web_ui.py` is a thin transport adapter around the same `_run_agent` composition used
-by the CLI. It contains no weather or LLM business logic. Each `POST /api/ask` creates
-a new `JsonlTracer`, executes one bounded agent run, and returns the structured
-`AgentResult` plus an allowlisted projection of trace fields.
+`web_ui.py` calls the same `_run_agent` function as the CLI and contains no weather or
+LLM logic. Each `POST /api/ask` creates a new trace and returns the result with the
+trace fields needed by the page.
 
 The server deliberately uses only the Python standard library and embedded package
 assets, so it adds no runtime dependency. `create_server` rejects any host other than

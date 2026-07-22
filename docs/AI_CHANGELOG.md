@@ -85,3 +85,11 @@ for a verified defect or a new requirement.
   prompt-override requests are refused before any LLM or Open-Meteo call.
 - Added network-free HTTP and bridge tests for routing, validation, trace isolation,
   loopback binding, controlled failures, and lifecycle cleanup.
+
+## 2026-07-22 - Presentation and code cleanup
+
+- Replaced the landing-page style UI with a smaller, conventional local tool layout.
+- Shortened user-facing trace messages and removed repetitive wording from the main
+  documentation.
+- Grouped input-scope checks by purpose instead of maintaining one long keyword list.
+- Tightened the weather-provider protocol type without changing runtime behavior.

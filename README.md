@@ -1,9 +1,8 @@
 # Simple Weather Agent
 
-A locally runnable Python agent powered by an OpenAI-compatible LLM. It answers
-only current-temperature questions for cities explicitly named in the user request,
-using the public Open-Meteo API. Every run produces a structured JSONL trace, and
-validated tool data—not unrestricted model text—controls the public answer.
+A small Python agent that answers current-temperature questions for named cities.
+It uses an OpenAI-compatible model for tool calling and Open-Meteo for the actual
+weather reading. Every run writes a JSONL trace.
 
 ## Quick start
 
@@ -44,11 +43,10 @@ Start the optional interactive UI on the loopback interface:
 ./run.ps1 --ui
 ```
 
-The browser UI runs the same constrained agent as the CLI, displays the validated
-temperature result and sanitized execution timeline, and lets you download the
-run's JSONL trace. It binds only to `127.0.0.1` and loads no remote web assets.
+The browser UI uses the same agent as the CLI. It shows the result and run trace,
+and is available only on `127.0.0.1`.
 
-Run the evaluator-friendly acceptance demonstration with:
+Run the three sample cases with:
 
 ```bash
 ./scripts/demo.sh

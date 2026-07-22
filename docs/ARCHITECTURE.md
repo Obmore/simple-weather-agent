@@ -40,19 +40,18 @@ count provides a hard safety bound.
 
 Status: accepted.
 
-A system prompt is not a sufficient invariant by itself. Therefore:
+A system prompt is not enough to enforce the scope. The application also:
 
 - only one narrow tool is available;
-- a deterministic pre-model gate rejects clear forecast, history, mixed-weather,
+- rejects clear forecast, history, mixed-weather,
   advice, general-knowledge, and prompt-override requests;
 - the tool accepts neither arbitrary URLs nor selectable weather fields;
 - tool city arguments are bound back to words in the user question;
 - the model must refuse the entire request when allowed and disallowed scopes are mixed.
 
-Normalized conservative similarity matching handles grammatical suffixes. This is a
-safety boundary rather than a general natural-language understanding or named-entity
-recognition system. The input gate intentionally prefers a safe false rejection over
-an out-of-scope answer, and rejections remain diagnosable through the trace.
+Normalized similarity matching handles common grammatical suffixes in city names.
+The input policy may reject an ambiguous valid question; this is preferable to an
+out-of-scope answer and is visible in the trace.
 
 ## ADR-004: Execution trace, not chain-of-thought
 
@@ -63,16 +62,16 @@ It neither requests nor stores hidden chain-of-thought. JSONL files are append-o
 one file is created per run, and every record includes a run ID, sequence number,
 and UTC timestamp.
 
-## ADR-005: Deterministic public output guard
+## ADR-005: Tool-result output
 
 Status: accepted.
 
 The LLM controls tool selection but does not directly control the public response.
-Without a validated temperature tool result, the application returns a fixed scope
-refusal. After a tool round trip, Python renders the answer only from the validated
-city, temperature, unit, observation time, and error fields. This prevents prompt
-injection or provider drift from adding forecasts, other weather variables, advice,
-or general knowledge.
+Without a temperature tool result, the application returns a fixed scope refusal.
+After a tool round trip, Python renders the answer only from the city, temperature,
+unit, observation time, and error fields returned by the tool. This keeps forecasts,
+other weather variables, advice, and general knowledge out of the answer even if a
+model response includes them.
 
 ## ADR-006: Static local trace dashboard
 
@@ -80,16 +79,15 @@ Status: accepted.
 
 The optional UI is a self-contained HTML rendering of an existing local JSONL trace.
 It starts no server, loads no remote assets, and introduces no runtime dependency or
-additional LLM tool. The required Bash CLI remains the canonical execution surface.
+additional LLM tool. The Bash CLI remains available as the main execution surface.
 
 ## ADR-007: Optional interactive loopback UI
 
 Status: accepted.
 
-An interactive browser UI is an additive local presentation layer. It invokes the
-same `WeatherAgent` composition as the CLI, creates one JSONL trace per question, and
-renders only the structured `AgentResult` and an allowlisted trace projection. The
-required Bash entry point remains available and starts the UI through `--ui`.
+The browser UI is optional. It uses the same `WeatherAgent` as the CLI, creates one
+JSONL trace per question, and displays only the result and selected trace fields. The
+Bash entry point starts it through `--ui`.
 
 The HTTP server binds only to the exact `127.0.0.1` address, serves embedded assets,
 accepts bounded JSON requests, and exposes trace files only through validated run

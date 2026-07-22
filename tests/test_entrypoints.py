@@ -21,7 +21,7 @@ def test_development_setup_installs_extras_from_project_directory() -> None:
     assert 'pip install -e ".[dev]"' in setup_script
 
 
-def test_demo_script_uses_the_canonical_entrypoint_and_trace_viewer() -> None:
+def test_demo_script_uses_the_main_entrypoint_and_trace_viewer() -> None:
     demo_script = (PROJECT_ROOT / "scripts" / "demo.sh").read_text(encoding="utf-8")
 
     assert '"${PROJECT_DIR}/run.sh"' in demo_script
