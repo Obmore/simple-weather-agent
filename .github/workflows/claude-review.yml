@@ -1,0 +1,81 @@
+# Claude review of pull requests, in place of the Codex connector's automatic reviews.
+#
+# Least privilege: the job token reads the code and writes PR comments, nothing else (no push,
+# no merge). No `id-token: write`, so the Claude GitHub App's token (contents, pull requests and
+# issues, all read-write) is never requested; comments come from github-actions[bot].
+# Minutes: one review when a PR is opened, reopened or marked ready, none on later pushes; the
+# `claude-review` label asks for one more on the current head and is removed after the run.
+#
+# Needs one repository secret, CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`, Pro/Max plan).
+# Without it the job only leaves a warning. Setup and use: Obmore/benji-mods, docs/HASZNALAT.md, "Claude-review a GitHubon".
+name: Claude review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, labeled]
+
+permissions: {}
+
+jobs:
+  review:
+    # The label is an explicit request, so it also reviews a draft.
+    if: >-
+      ${{ !endsWith(github.actor, '[bot]')
+      && ((github.event.action == 'labeled' && github.event.label.name == 'claude-review')
+      || (github.event.action != 'labeled' && !github.event.pull_request.draft)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Job level, so a label event this job skips cannot cancel a review in progress.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Secret missing
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::warning::CLAUDE_CODE_OAUTH_TOKEN is not set for this repository, so no Claude review ran."
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        if: env.HAS_TOKEN == 'true'
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@6b6870e649b5ff408753befeaee5fc7989d4e6a9 # v1.0.258
+        if: env.HAS_TOKEN == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            HEAD: ${{ github.event.pull_request.head.sha }}
+
+            Review this pull request. The working directory holds the PR merged into its base.
+            Start with `gh pr view ${{ github.event.pull_request.number }} --json title,body,baseRefName,headRefName,files`
+            and `gh pr diff ${{ github.event.pull_request.number }}`, then read the surrounding code as needed.
+            A plain `gh pr view` fails here: it also asks for check results, which this token cannot read.
+
+            Report correctness bugs, security problems and regressions only, each traced to a
+            concrete input or state that fails. No style points, no praise, no summary of the diff.
+
+            - Post each finding with `mcp__github_inline_comment__create_inline_comment`
+              (`confirmed: true`) on the changed line closest to it. Begin it with P1 (blocks the
+              merge), P2 (should be fixed) or P3 (minor), then the failure scenario and the fix.
+            - Then post exactly one conversation comment with `gh pr comment`: "Claude review of
+              <HEAD>:" and the number of findings per priority, or "no findings".
+          claude_args: |
+            --max-turns 40
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      - name: Remove the claude-review label
+        if: always() && github.event.action == 'labeled'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/$REPO/issues/$PR/labels/claude-review" --silent || echo "::warning::Could not remove the claude-review label."
